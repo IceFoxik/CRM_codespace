@@ -44,5 +44,35 @@ class TeacherRepository(StudentRepositoryABC):
         self.cursor.close()
         self.conn.close()
 
+conn = psycopg2.connect(
+    dbname="postgres",
+    host="localhost",
+    user="postgres",
+    password="password",
+    port="5432"
+)
+cur = conn.cursor()
+cur.execute("INSERT INTO servers (server, cost) VALUES (%s, %s);", ("server1", 100))
+conn.commit()
+cur.execute("INSERT INTO servers (server, cost) VALUES (%s, %s);", ("server2", 200))
+conn.commit()
+cur.execute("INSERT INTO servers (server, cost) VALUES (%s, %s);", ("server3", 300))
+conn.commit()
+cur.execute("SELECT * FROM servers WHERE server=%s", ('server1',))
+cur.fetchone()
+print(cur.fetchone())
 
+conn = psycopg2.connect(
+    dbname="postgres",
+    host="localhost",
+    user="postgres",
+    password="password",
+    port="5432"
+)
+cur = conn.cursor()
+request_to_read_serv = "SELECT * FROM servers"
+
+cur.execute(request_to_read_serv)
+
+data = cur.fetchall()
 
