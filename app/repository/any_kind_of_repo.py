@@ -1,78 +1,133 @@
-# repositories/abstract.py
 import psycopg2
-from abc import ABC, abstractmethod
+from psycopg2 import sql
 
+# Настройки подключения к базе данных
+DB_CONFIG = {
+    'dbname': 'postgres',
+    'user': 'postgres',
+    'password': 'password',
+    'host': 'localhost',
+    'port': 5432
+}
 
-class StudentRepositoryABC(ABC):
-    @abstractmethod
-    def add_teacher(self, tg_id):
-        pass
+def connect_to_db():
+    """Подключение к базе данных."""
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        return conn
+    except Exception as e:
+        print(f"Ошибка подключения к базе данных: {e}")
+        return None
 
-    @abstractmethod
-    def get_teacher(self, tg_id):
-        pass
+def insert_server(server_name, cost):
+    """Добавление новой записи в таблицу servers."""
+    conn = connect_to_db()
+    if conn is None:
+        return
+    try:
+        with conn.cursor() as cur:
+            query = "INSERT INTO servers (server, cost) VALUES (%s, %s);"
+            cur.execute(query, (server_name, cost))
+            conn.commit()
+            print(f"Запись '{server_name}' успешно добавлена.")
+    except Exception as e:
+        print(f"Ошибка при добавлении записи: {e}")
+    finally:
+        conn.close()
 
+def read_servers():
+    """Чтение всех записей из таблицы servers."""
+    conn = connect_to_db()
+    if conn is None:
+        return
+    try:
+        with conn.cursor() as cur:
+            query = "SELECT * FROM servers;"
+            cur.execute(query)
+            rows = cur.fetchall()
+            for row in rows:
+                print(f"ID: {row[0]}, Server: {row[1]}, Cost: {row[2]}")
+    except Exception as e:
+        print(f"Ошибка при чтении записей: {e}")
+    finally:
+        conn.close()
 
-class TeacherRepository(StudentRepositoryABC):
-    def __init__(self):
-        self.conn = psycopg2.connect(
-            dbname="wg_forge_db",
-            host="localhost",
-            user="wg_forge",
-            password="42a",
-            port="5432"
-        )
-        self.cursor = self.conn.cursor()
+def read_server_by_name(server_name):
+    """Чтение записи по имени сервера."""
+    conn = connect_to_db()
+    if conn is None:
+        return
+    try:
+        with conn.cursor() as cur:
+            query = "SELECT * FROM servers WHERE server = %s;"
+            cur.execute(query, (server_name,))
+            row = cur.fetchone()
+            if row:
+                print(f"ID: {row[0]}, Server: {row[1]}, Cost: {row[2]}")
+            else:
+                print(f"Сервер с именем '{server_name}' не найден.")
+    except Exception as e:
+        print(f"Ошибка при чтении записи: {e}")
+    finally:
+        conn.close()
 
-    def add_teacher(self, tg_id) -> bool:
-        try:
-            self.cursor.execute("INSERT INTO teachers (telegram_id) VALUES (%s)", (tg_id,))
-            self.conn.commit()
-            return True
-        except psycopg2.Error as e:
-            print(f"Ошибка добавления учителя: {e}")
-            self.conn.rollback()
-            return False
-    def get_teacher(self, tg_id):
-        try:
-            self.cursor.execute("SELECT * FROM teachers WHERE telegram_id=%s", (tg_id,))
-            return True if self.cursor.fetchone() else False
-        except psycopg2.Error as e:
-            print(f"Ошибка получения студента: {e}")
-            return None
-    def close(self):
-        self.cursor.close()
-        self.conn.close()
+def delete_server(server_id):
+    """Удаление записи из таблицы servers по ID."""
+    conn = connect_to_db()
+    if conn is None:
+        return
+    try:
+        with conn.cursor() as cur:
+            query = "DELETE FROM servers WHERE id = %s;"
+            cur.execute(query, (server_id,))
+            conn.commit()
+            if cur.rowcount > 0:
+                print(f"Запись с ID {server_id} успешно удалена.")
+            else:
+                print(f"Запись с ID {server_id} не найдена.")
+    except Exception as e:
+        print(f"Ошибка при удалении записи: {e}")
+    finally:
+        conn.close()
 
-conn = psycopg2.connect(
-    dbname="postgres",
-    host="localhost",
-    user="postgres",
-    password="password",
-    port="5432"
-)
-cur = conn.cursor()
-cur.execute("INSERT INTO servers (server, cost) VALUES (%s, %s);", ("server1", 100))
-conn.commit()
-cur.execute("INSERT INTO servers (server, cost) VALUES (%s, %s);", ("server2", 200))
-conn.commit()
-cur.execute("INSERT INTO servers (server, cost) VALUES (%s, %s);", ("server3", 300))
-conn.commit()
-cur.execute("SELECT * FROM servers WHERE server=%s", ('server1',))
-cur.fetchone()
-print(cur.fetchone())
+def reset_table():
+    """Сброс таблицы и последовательности для id."""
+    conn = connect_to_db()
+    if conn is None:
+        return
+    try:
+        with conn.cursor() as cur:
+            query = "TRUNCATE TABLE servers RESTART IDENTITY;"
+            cur.execute(query)
+            conn.commit()
+            print("Таблица очищена, и последовательность для id сброшена.")
+    except Exception as e:
+        print(f"Ошибка при сбросе таблицы: {e}")
+    finally:
+        conn.close()
 
-conn = psycopg2.connect(
-    dbname="postgres",
-    host="localhost",
-    user="postgres",
-    password="password",
-    port="5432"
-)
-cur = conn.cursor()
-request_to_read_serv = "SELECT * FROM servers"
+# Основной блок выполнения
+if __name__ == "__main__":
+    # Добавление записей
+    insert_server("server1", 100)
+    insert_server("server2", 200)
+    insert_server("server3", 300)
 
-cur.execute(request_to_read_serv)
+    # Чтение всех записей
+    print("\nВсе записи в таблице:")
+    read_servers()
 
-data = cur.fetchall()
+    # Чтение записи по имени
+    print("\nЧтение записи по имени:")
+    read_server_by_name("server1")
 
+    # Удаление записи
+    print("\nУдаление записи:")
+    delete_server(1)
+    
+    # Повторное чтение всех записей после удаления
+    print("\nПовторное чтение всех записей:")
+    read_servers()
+
+    # Сброс таблицы
+    # reset_table()
