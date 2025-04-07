@@ -1,6 +1,7 @@
 import psycopg2
 from psycopg2 import sql
 
+
 # Настройки подключения к базе данных
 DB_CONFIG = {
     'dbname': 'postgres',
